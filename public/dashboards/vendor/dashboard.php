@@ -1,12 +1,13 @@
 <?php
 // ===============================
-// VENDOR DASHBOARD (OPTION 1 – NO STATUS)
+// VENDOR DASHBOARD
 // ===============================
 
 require_once __DIR__ . "/../../../config/config.php";
 require_once __DIR__ . "/../../../config/database.php";
 require_once __DIR__ . "/../../../includes/auth.php";
 
+// AUTH
 requireLogin();
 
 if ($_SESSION['user']['role'] !== 'vendor') {
@@ -14,7 +15,7 @@ if ($_SESSION['user']['role'] !== 'vendor') {
     exit;
 }
 
-$vendorId = $_SESSION['user']['id'];
+$vendorId = (int) $_SESSION['user']['id'];
 
 // ===============================
 // VENDOR PROFILE
@@ -41,13 +42,13 @@ if ($vendor['status'] !== 'approved') {
 }
 
 // ===============================
-// REAL-TIME STATS (NO STATUS USED)
+// STATS
 // ===============================
 
 // TOTAL ORDERS
 $qOrders = mysqli_query(
     $conn,
-    "SELECT COUNT(DISTINCT o.id) AS total
+    "SELECT COUNT(DISTINCT o.id) total
      FROM orders o
      JOIN order_items oi ON oi.order_id = o.id
      JOIN products p ON p.id = oi.product_id
@@ -58,7 +59,7 @@ $totalOrders = mysqli_fetch_assoc($qOrders)['total'] ?? 0;
 // TOTAL CUSTOMERS
 $qCustomers = mysqli_query(
     $conn,
-    "SELECT COUNT(DISTINCT o.user_id) AS total
+    "SELECT COUNT(DISTINCT o.user_id) total
      FROM orders o
      JOIN order_items oi ON oi.order_id = o.id
      JOIN products p ON p.id = oi.product_id
@@ -66,19 +67,20 @@ $qCustomers = mysqli_query(
 );
 $totalCustomers = mysqli_fetch_assoc($qCustomers)['total'] ?? 0;
 
-// TOTAL REVENUE (ALL SALES)
+// TOTAL REVENUE
 $qRevenue = mysqli_query(
     $conn,
-    "SELECT COALESCE(SUM(oi.price * oi.quantity), 0) AS total
+    "SELECT COALESCE(SUM(oi.price * oi.quantity),0) total
      FROM order_items oi
      JOIN products p ON p.id = oi.product_id
      WHERE p.vendor_id = $vendorId"
 );
 $totalRevenue = mysqli_fetch_assoc($qRevenue)['total'] ?? 0;
 
-// PENDING ORDERS (TEMP = TOTAL ORDERS)
+// PENDING ORDERS
 $pendingOrders = $totalOrders;
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,32 +94,47 @@ $pendingOrders = $totalOrders;
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body class="vendor-page dark">
+<body class="vendor-page">
 
 <div class="vendor-layout">
-
 
     <!-- SIDEBAR -->
     <aside class="vendor-sidebar">
         <div class="brand">Pure<span>Home</span></div>
+
         <nav class="vendor-nav">
-            <a class="active"><i class="fa fa-chart-pie"></i> Dashboard</a>
-            <a href="products.php"><i class="fa fa-box"></i> Products</a>
-            <a href="add-product.php"><i class="fa fa-plus"></i> Add Product</a>
-            <a href="/logout.php"><i class="fa fa-sign-out-alt"></i> Logout</a>
+            <a class="active">
+                <i class="fa fa-chart-pie"></i> Dashboard
+            </a>
+            <a href="products.php">
+                <i class="fa fa-box"></i> Products
+            </a>
+            <a href="add-product.php">
+                <i class="fa fa-plus"></i> Add Product
+            </a>
+            <a href="/logout.php">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </a>
         </nav>
     </aside>
 
     <!-- MAIN -->
     <main class="vendor-main">
 
-        <!-- TOPBAR -->
+        <!-- TOP BAR -->
         <header class="vendor-topbar">
             <div>
                 <h2>Hello, <?= htmlspecialchars($vendor['business_name']) ?> 👋</h2>
                 <span class="muted">This month overview</span>
             </div>
+
             <div class="vendor-profile">
+
+                <!-- THEME TOGGLE (SAME AS ADMIN) -->
+                <button id="themeToggle" title="Toggle theme">
+                    <i class="fa fa-sun" id="themeIcon"></i>
+                </button>
+
                 <i class="fa fa-user-circle"></i> Vendor
             </div>
         </header>
@@ -157,13 +174,13 @@ $pendingOrders = $totalOrders;
 </div>
 
 <script>
-new Chart(document.getElementById('revenueChart'), {
-    type: 'bar',
+new Chart(document.getElementById("revenueChart"), {
+    type: "bar",
     data: {
-        labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+        labels: ["Jan","Feb","Mar","Apr","May","Jun"],
         datasets: [{
-            data: [0, 0, 0, 0, 0, 0],
-            backgroundColor: '#4f7cff',
+            data: [0,0,0,0,0,0],
+            backgroundColor: "#4f7cff",
             borderRadius: 6
         }]
     },
@@ -173,6 +190,9 @@ new Chart(document.getElementById('revenueChart'), {
     }
 });
 </script>
+
+<!-- GLOBAL JS -->
+<script src="/assets/js/app.js"></script>
 
 </body>
 </html>

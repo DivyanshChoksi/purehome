@@ -1,53 +1,54 @@
 <?php
 // ===============================
-// VENDOR PRODUCTS PAGE
+// VENDOR PRODUCTS PAGE (DASHBOARD)
 // ===============================
 
-require_once "../../config/config.php";
-require_once "../../config/database.php";
-require_once "../../includes/auth.php";
+// BASE PATH (IMPORTANT)
+$basePath = dirname(__DIR__, 3);
 
-// Login required
+require_once $basePath . "/config/config.php";
+require_once $basePath . "/config/database.php";
+require_once $basePath . "/includes/auth.php";
+
+// AUTH
 requireLogin();
 
-// Only vendor allowed
 if ($_SESSION['user']['role'] !== 'vendor') {
-    header("Location: ../../public/login.php");
+    header("Location: /login.php");
     exit;
 }
 
-$user_id = $_SESSION['user']['id'];
+$vendorId = (int) $_SESSION['user']['id'];
 
-// Check vendor approval
-$vendorCheck = mysqli_query(
+// VENDOR CHECK
+$stmt = mysqli_prepare(
     $conn,
-    "SELECT status FROM vendor_profiles WHERE user_id = $user_id LIMIT 1"
+    "SELECT business_name, status 
+     FROM vendor_profiles 
+     WHERE user_id = ? 
+     LIMIT 1"
 );
+mysqli_stmt_bind_param($stmt, "i", $vendorId);
+mysqli_stmt_execute($stmt);
+$vendor = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 
-if (mysqli_num_rows($vendorCheck) === 0) {
+if (!$vendor) {
     header("Location: complete-profile.php");
     exit;
 }
 
-$vendor = mysqli_fetch_assoc($vendorCheck);
-
 if ($vendor['status'] !== 'approved') {
-    echo "<h3>Your vendor account is not approved yet.</h3>";
-    echo '<a href="../../public/logout.php">Logout</a>';
+    header("Location: /vendor-pending.php");
     exit;
 }
 
 // DELETE PRODUCT
 if (isset($_GET['delete'])) {
-
-    $product_id = (int) $_GET['delete'];
-
-    // Ensure product belongs to this vendor
+    $pid = (int) $_GET['delete'];
     mysqli_query(
         $conn,
-        "DELETE FROM products WHERE id = $product_id AND vendor_id = $user_id"
+        "DELETE FROM products WHERE id = $pid AND vendor_id = $vendorId"
     );
-
     header("Location: products.php");
     exit;
 }
@@ -55,72 +56,116 @@ if (isset($_GET['delete'])) {
 // FETCH PRODUCTS
 $result = mysqli_query(
     $conn,
-    "SELECT id, title, price, image, created_at 
+    "SELECT id, title, price, image 
      FROM products 
-     WHERE vendor_id = $user_id 
-     ORDER BY created_at DESC"
+     WHERE vendor_id = $vendorId
+     ORDER BY id DESC"
 );
 ?>
 
-<?php require_once "../../includes/header.php"; ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Products | Vendor Dashboard</title>
 
-<main class="container">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
 
-    <h1>My Products</h1>
+<body class="vendor-page">
 
-    <p>
-        <a href="add-product.php" class="btn">➕ Add New Product</a>
-    </p>
+<div class="vendor-layout">
 
-    <?php if (mysqli_num_rows($result) === 0): ?>
-        <p>No products found.</p>
-    <?php else: ?>
+    <!-- SIDEBAR -->
+    <aside class="vendor-sidebar">
+        <div class="brand">Pure<span>Home</span></div>
 
-        <table border="1" cellpadding="10" cellspacing="0" width="100%">
+        <nav class="vendor-nav">
+            <a href="dashboard.php">
+                <i class="fa fa-chart-pie"></i> Dashboard
+            </a>
+            <a class="active">
+                <i class="fa fa-box"></i> Products
+            </a>
+            <a href="add-product.php">
+                <i class="fa fa-plus"></i> Add Product
+            </a>
+            <a href="/logout.php">
+                <i class="fa fa-sign-out-alt"></i> Logout
+            </a>
+        </nav>
+    </aside>
 
-            <tr>
-                <th>Image</th>
-                <th>Title</th>
-                <th>Price</th>
-                <th>Added On</th>
-                <th>Action</th>
-            </tr>
+    <!-- MAIN -->
+    <main class="vendor-main">
 
-            <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                <tr>
+        <!-- TOP BAR -->
+        <header class="vendor-topbar">
+            <div>
+                <h2>My Products</h2>
+                <span class="muted">Manage your products</span>
+            </div>
 
-                    <td>
-                        <?php if ($row['image']): ?>
-                            <img src="<?= htmlspecialchars($row['image']) ?>" width="60">
-                        <?php else: ?>
-                            N/A
-                        <?php endif; ?>
-                    </td>
+            <div class="vendor-profile">
 
-                    <td><?= htmlspecialchars($row['title']) ?></td>
+                <!-- THEME TOGGLE -->
+                <button id="themeToggle" title="Toggle theme">
+                    <i class="fa fa-sun" id="themeIcon"></i>
+                </button>
 
-                    <td>₹<?= number_format($row['price'], 2) ?></td>
+                <a href="add-product.php" class="btn-primary">
+                    <i class="fa fa-plus"></i> Add Product
+                </a>
+            </div>
+        </header>
 
-                    <td><?= date("d M Y", strtotime($row['created_at'])) ?></td>
+        <!-- PRODUCTS -->
+        <section class="vendor-section">
 
-                    <td>
-                        <a href="products.php?delete=<?= $row['id'] ?>"
-                           onclick="return confirm('Delete this product?')">
-                           ❌ Delete
-                        </a>
-                    </td>
+            <?php if (mysqli_num_rows($result) === 0): ?>
+                <p class="muted">No products added yet.</p>
+            <?php else: ?>
 
-                </tr>
-            <?php endwhile; ?>
+                <div class="product-grid">
 
-        </table>
+                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                        <div class="product-card">
 
-    <?php endif; ?>
+                            <div class="product-img">
+                                <?php if ($row['image']): ?>
+                                    <img src="<?= htmlspecialchars($row['image']) ?>" alt="">
+                                <?php else: ?>
+                                    <span class="muted">No Image</span>
+                                <?php endif; ?>
+                            </div>
 
-    <p>
-        <a href="dashboard.php">← Back to Dashboard</a>
-    </p>
+                            <h4><?= htmlspecialchars($row['title']) ?></h4>
+                            <p class="price">₹<?= number_format($row['price'], 2) ?></p>
 
-</main>
+                            <div class="product-actions">
+                                <a href="products.php?delete=<?= $row['id'] ?>"
+                                   class="delete-btn"
+                                   data-confirm="Delete this product?">
+                                    <i class="fa fa-trash"></i>
+                                </a>
+                            </div>
 
-<?php require_once "../../includes/footer.php"; ?>
+                        </div>
+                    <?php endwhile; ?>
+
+                </div>
+
+            <?php endif; ?>
+
+        </section>
+
+    </main>
+</div>
+
+<!-- GLOBAL JS -->
+<script src="/assets/js/app.js"></script>
+
+</body>
+</html>

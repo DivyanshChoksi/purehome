@@ -1,24 +1,27 @@
 <?php
 // ===============================
-// PUBLIC HOME / DASHBOARD (NO LOGIN)
+// PUBLIC HOME PAGE (NO LOGIN)
 // ===============================
 
 require_once "../config/config.php";
 require_once "../config/database.php";
 require_once "../includes/header.php";
 
-// Fetch active products
+// Fetch latest active products
 $sql = "
     SELECT id, title, price, image
     FROM products
     WHERE status = 'active'
     ORDER BY created_at DESC
+    LIMIT 8
 ";
 
 $result = mysqli_query($conn, $sql);
 ?>
 
-<!-- HERO SECTION -->
+<!-- ===============================
+     HERO SECTION
+=============================== -->
 <section class="home-hero">
     <div class="home-hero-content">
         <h1>Welcome to PureHome</h1>
@@ -39,45 +42,53 @@ $result = mysqli_query($conn, $sql);
     </div>
 </section>
 
-<!-- PRODUCTS SECTION -->
-<section id="products" class="container home-section">
+<!-- ===============================
+     PRODUCTS SECTION
+=============================== -->
+<section id="products" class="home-products">
 
-    <h2>Latest Products</h2>
-
+    <h2 class="section-title">Latest Products</h2>
 
     <div class="product-grid">
 
         <?php if ($result && mysqli_num_rows($result) > 0): ?>
-
             <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                <div class="product-card">
 
-                    <div class="product-image">
+                <div class="product-card light-card">
+
+                    <div class="product-img">
                         <?php if (!empty($row['image'])): ?>
-                            <img src="<?= htmlspecialchars($row['image']) ?>"
-                                 alt="Product">
+                            <img
+                                src="<?= htmlspecialchars($row['image']) ?>"
+                                alt="<?= htmlspecialchars($row['title']) ?>"
+                                loading="lazy"
+                            >
                         <?php else: ?>
-                            <img src="<?= BASE_URL ?>/assets/images/no-image.png"
-                                 alt="No Image">
+                            <img
+                                src="<?= BASE_URL ?>/assets/images/no-image.png"
+                                alt="No image available"
+                            >
                         <?php endif; ?>
                     </div>
 
-                    <h3><?= htmlspecialchars($row['title']) ?></h3>
-
-
+                    <h3 class="product-title">
+                        <?= htmlspecialchars($row['title']) ?>
+                    </h3>
 
                     <p class="price">
-                        ₹<?= number_format($row['price'], 2) ?>
+                        ₹<?= number_format((float)$row['price'], 2) ?>
                     </p>
 
-                    <a href="<?= BASE_URL ?>/product.php?id=<?= $row['id'] ?>"
-                       class="btn">
+                    <a
+                        href="<?= BASE_URL ?>/product.php?id=<?= (int)$row['id'] ?>"
+                        class="btn-primary"
+                    >
                         View Product
                     </a>
 
                 </div>
-            <?php endwhile; ?>
 
+            <?php endwhile; ?>
         <?php else: ?>
 
             <div class="empty-box">

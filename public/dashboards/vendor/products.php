@@ -3,7 +3,7 @@
 // VENDOR PRODUCTS PAGE (DASHBOARD)
 // ===============================
 
-// BASE PATH (IMPORTANT)
+// BASE PATH
 $basePath = dirname(__DIR__, 3);
 
 require_once $basePath . "/config/config.php";
@@ -20,12 +20,14 @@ if ($_SESSION['user']['role'] !== 'vendor') {
 
 $vendorId = (int) $_SESSION['user']['id'];
 
+// ===============================
 // VENDOR CHECK
+// ===============================
 $stmt = mysqli_prepare(
     $conn,
-    "SELECT business_name, status 
-     FROM vendor_profiles 
-     WHERE user_id = ? 
+    "SELECT business_name, status
+     FROM vendor_profiles
+     WHERE user_id = ?
      LIMIT 1"
 );
 mysqli_stmt_bind_param($stmt, "i", $vendorId);
@@ -42,22 +44,30 @@ if ($vendor['status'] !== 'approved') {
     exit;
 }
 
+// ===============================
 // DELETE PRODUCT
+// ===============================
 if (isset($_GET['delete'])) {
     $pid = (int) $_GET['delete'];
-    mysqli_query(
+
+    $del = mysqli_prepare(
         $conn,
-        "DELETE FROM products WHERE id = $pid AND vendor_id = $vendorId"
+        "DELETE FROM products WHERE id = ? AND vendor_id = ?"
     );
+    mysqli_stmt_bind_param($del, "ii", $pid, $vendorId);
+    mysqli_stmt_execute($del);
+
     header("Location: products.php");
     exit;
 }
 
+// ===============================
 // FETCH PRODUCTS
+// ===============================
 $result = mysqli_query(
     $conn,
-    "SELECT id, title, price, image 
-     FROM products 
+    "SELECT id, title, price, image
+     FROM products
      WHERE vendor_id = $vendorId
      ORDER BY id DESC"
 );
@@ -112,7 +122,7 @@ $result = mysqli_query(
 
                 <!-- THEME TOGGLE -->
                 <button id="themeToggle" title="Toggle theme">
-                    <i class="fa fa-sun" id="themeIcon"></i>
+                    <i id="themeIcon" class="fa fa-sun"></i>
                 </button>
 
                 <a href="add-product.php" class="btn-primary">
@@ -124,30 +134,36 @@ $result = mysqli_query(
         <!-- PRODUCTS -->
         <section class="vendor-section">
 
-            <?php if (mysqli_num_rows($result) === 0): ?>
-                <p class="muted">No products added yet.</p>
-            <?php else: ?>
-
+            <?php if ($result && mysqli_num_rows($result) > 0): ?>
                 <div class="product-grid">
 
                     <?php while ($row = mysqli_fetch_assoc($result)): ?>
                         <div class="product-card">
 
                             <div class="product-img">
-                                <?php if ($row['image']): ?>
-                                    <img src="<?= htmlspecialchars($row['image']) ?>" alt="">
+                                <?php if (!empty($row['image'])): ?>
+                                    <img
+                                        src="<?= htmlspecialchars($row['image']) ?>"
+                                        alt="<?= htmlspecialchars($row['title']) ?>"
+                                        loading="lazy"
+                                    >
                                 <?php else: ?>
                                     <span class="muted">No Image</span>
                                 <?php endif; ?>
                             </div>
 
                             <h4><?= htmlspecialchars($row['title']) ?></h4>
-                            <p class="price">₹<?= number_format($row['price'], 2) ?></p>
+
+                            <p class="price">
+                                ₹<?= number_format((float)$row['price'], 2) ?>
+                            </p>
 
                             <div class="product-actions">
-                                <a href="products.php?delete=<?= $row['id'] ?>"
-                                   class="delete-btn"
-                                   data-confirm="Delete this product?">
+                                <a
+                                    href="products.php?delete=<?= (int)$row['id'] ?>"
+                                    class="delete-btn"
+                                    data-confirm="Delete this product?"
+                                >
                                     <i class="fa fa-trash"></i>
                                 </a>
                             </div>
@@ -156,6 +172,9 @@ $result = mysqli_query(
                     <?php endwhile; ?>
 
                 </div>
+            <?php else: ?>
+
+                <p class="muted">No products added yet.</p>
 
             <?php endif; ?>
 

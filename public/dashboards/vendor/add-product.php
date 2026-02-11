@@ -1,21 +1,16 @@
 <?php
 // ===============================
-// VENDOR ADD PRODUCT (DASHBOARD)
+// VENDOR ADD PRODUCT (CLOUDINARY v3)
 // ===============================
 
-// BASE PATH
 $basePath = dirname(__DIR__, 3);
 
 require_once $basePath . "/config/config.php";
 require_once $basePath . "/config/database.php";
 require_once $basePath . "/includes/auth.php";
-require_once $basePath . "/config/cloudinary.php";
 
-use Cloudinary\Api\Upload\UploadApi;
+$cloudinary = require $basePath . "/config/cloudinary.php";
 
-// -------------------------------
-// AUTH CHECK
-// -------------------------------
 requireLogin();
 
 if ($_SESSION['user']['role'] !== 'vendor') {
@@ -25,9 +20,10 @@ if ($_SESSION['user']['role'] !== 'vendor') {
 
 $user_id = (int) $_SESSION['user']['id'];
 
-// -------------------------------
-// VENDOR APPROVAL CHECK
-// -------------------------------
+/* ===============================
+   CHECK VENDOR STATUS
+=============================== */
+
 $stmt = mysqli_prepare(
     $conn,
     "SELECT business_name, status 
@@ -49,71 +45,73 @@ if ($vendor['status'] !== 'approved') {
     exit;
 }
 
-// -------------------------------
-// FORM LOGIC
-// -------------------------------
+/* ===============================
+   FORM SUBMIT
+=============================== */
+
 $error = "";
 $success = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $title       = trim($_POST['title']);
-    $price       = trim($_POST['price']);
+    $price       = (float) $_POST['price'];
     $description = trim($_POST['description']);
     $imageUrl    = "";
 
-    if ($title === "" || $price === "") {
+    if (empty($title) || empty($price)) {
         $error = "Product title and price are required.";
     } else {
 
-        // IMAGE UPLOAD (CLOUDINARY FIRST)
+        /* ===============================
+           IMAGE UPLOAD TO CLOUDINARY
+        =============================== */
+
         if (!empty($_FILES['image']['name'])) {
             try {
-                $upload = (new UploadApi())->upload(
+
+                $upload = $cloudinary->uploadApi()->upload(
                     $_FILES['image']['tmp_name'],
                     [
-                        "folder" => "purehome/products",
-                        "resource_type" => "image"
+                        "folder" => "purehome/products"
                     ]
                 );
+
                 $imageUrl = $upload['secure_url'];
+
             } catch (Exception $e) {
-
-                // LOCAL FALLBACK
-                $uploadDir = $basePath . "/uploads/products/";
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
-
-                $fileName = time() . "_" . basename($_FILES["image"]["name"]);
-                if (move_uploaded_file($_FILES["image"]["tmp_name"], $uploadDir . $fileName)) {
-                    $imageUrl = "uploads/products/" . $fileName;
-                }
+                $error = "Image upload failed: " . $e->getMessage();
             }
         }
 
-        // INSERT PRODUCT
-        $stmt = mysqli_prepare(
-            $conn,
-            "INSERT INTO products 
-            (vendor_id, title, price, image, description, status)
-            VALUES (?, ?, ?, ?, ?, 'active')"
-        );
+        /* ===============================
+           INSERT PRODUCT
+        =============================== */
 
-        mysqli_stmt_bind_param(
-            $stmt,
-            "isdss",
-            $user_id,
-            $title,
-            $price,
-            $imageUrl,
-            $description
-        );
+        if (!$error) {
 
-        if (mysqli_stmt_execute($stmt)) {
-            $success = "Product added successfully.";
-        } else {
-            $error = "Failed to add product.";
+            $stmt = mysqli_prepare(
+                $conn,
+                "INSERT INTO products 
+                (vendor_id, title, price, image, description, status)
+                VALUES (?, ?, ?, ?, ?, 'active')"
+            );
+
+            mysqli_stmt_bind_param(
+                $stmt,
+                "isdss",
+                $user_id,
+                $title,
+                $price,
+                $imageUrl,
+                $description
+            );
+
+            if (mysqli_stmt_execute($stmt)) {
+                $success = "Product added successfully.";
+            } else {
+                $error = "Database error. Try again.";
+            }
         }
     }
 }

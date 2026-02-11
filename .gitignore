@@ -6,3 +6,4 @@
 .idea/
 Thumbs.db
 .DS_Store
+config/cloudinary.php
